@@ -1,0 +1,8 @@
+{
+  "name": "VOTEX BRAND | Winter Outerwear & Sub-Zero Footwear",
+  "description": "Official concept store for VOTEX BRAND (@votex_brand_). Premium -25°C rated winter sneakers, Polo insulated jackets, Turkish tactical kurtiks, and fast delivery in Ulaanbaatar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
