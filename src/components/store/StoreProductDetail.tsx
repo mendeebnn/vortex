@@ -18,7 +18,13 @@ export const StoreProductDetail: React.FC<StoreProductDetailProps> = ({ onDirect
     openAdminWithProduct,
   } = useApp();
 
-  const product = products.find((p) => p.id === selectedProductId) || products[0];
+  const product =
+    products.find(
+      (p) =>
+        p.id === selectedProductId ||
+        p.slug === selectedProductId ||
+        (selectedProductId && p.slug?.toLowerCase() === selectedProductId.toLowerCase())
+    ) || products[0];
 
   if (!product) {
     return (

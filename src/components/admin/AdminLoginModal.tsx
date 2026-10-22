@@ -3,7 +3,15 @@ import { Lock, Eye, EyeOff, X, ShieldAlert, ArrowRight, KeyRound } from 'lucide-
 import { useApp } from '../../context/AppContext';
 
 export const AdminLoginModal: React.FC = () => {
-  const { isLoginModalOpen, setIsLoginModalOpen, loginAdmin, storefrontConfig } = useApp();
+  const {
+    isLoginModalOpen,
+    setIsLoginModalOpen,
+    loginAdmin,
+    storefrontConfig,
+    activeView,
+    isAdminAuthenticated,
+    navigateToHome,
+  } = useApp();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(false);
@@ -28,17 +36,22 @@ export const AdminLoginModal: React.FC = () => {
     loginAdmin(defaultPass);
   };
 
+  const handleClose = () => {
+    setIsLoginModalOpen(false);
+    setError(false);
+    setPassword('');
+    if (activeView === 'admin' && !isAdminAuthenticated) {
+      navigateToHome();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="relative w-full max-w-md bg-white border border-[#E5E5E5] shadow-2xl p-6 sm:p-8 text-left animate-in fade-in zoom-in-95 duration-150">
         
         {/* Close Button */}
         <button
-          onClick={() => {
-            setIsLoginModalOpen(false);
-            setError(false);
-            setPassword('');
-          }}
+          onClick={handleClose}
           className="absolute top-4 right-4 p-2 text-[#737373] hover:text-[#0A0A0A] cursor-pointer transition-colors"
           title="Close"
         >

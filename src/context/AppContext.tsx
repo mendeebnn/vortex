@@ -125,12 +125,123 @@ const STORAGE_KEYS = {
   AUTH: 'votex_admin_auth_v4',
 };
 
+export function parseCurrentRoute(): {
+  view: 'store' | 'admin';
+  storePage: 'home' | 'shop' | 'collections' | 'product';
+  adminTab: AdminTab;
+  productId: string | null;
+  collectionSlug: string | null;
+  isCart: boolean;
+} {
+  if (typeof window === 'undefined') {
+    return {
+      view: 'store',
+      storePage: 'home',
+      adminTab: 'products',
+      productId: null,
+      collectionSlug: null,
+      isCart: false,
+    };
+  }
+
+  const rawPath = window.location.pathname.replace(/\/+$/, '') || '/';
+  const searchParams = new URLSearchParams(window.location.search);
+  const collectionParam = searchParams.get('collection');
+  const hasAdminHash = window.location.hash === '#admin';
+
+  if (rawPath === '/admin' || rawPath.startsWith('/admin/') || hasAdminHash) {
+    const sub = rawPath.startsWith('/admin') ? rawPath.replace(/^\/admin\/?/, '') : '';
+    let tab: AdminTab = 'products';
+    if (sub === 'collections') tab = 'collections';
+    else if (sub === 'store-design' || sub === 'storefront') tab = 'store-design';
+    else if (sub === 'logo-studio') tab = 'logo-studio';
+    else if (sub === 'orders') tab = 'orders';
+    else if (sub === 'settings') tab = 'settings';
+    else if (sub === 'products') tab = 'products';
+
+    return {
+      view: 'admin',
+      storePage: 'home',
+      adminTab: tab,
+      productId: null,
+      collectionSlug: null,
+      isCart: false,
+    };
+  }
+
+  if (rawPath === '/cart') {
+    return {
+      view: 'store',
+      storePage: 'home',
+      adminTab: 'products',
+      productId: null,
+      collectionSlug: null,
+      isCart: true,
+    };
+  }
+
+  if (rawPath === '/shop') {
+    return {
+      view: 'store',
+      storePage: 'shop',
+      adminTab: 'products',
+      productId: null,
+      collectionSlug: collectionParam || null,
+      isCart: false,
+    };
+  }
+
+  if (rawPath === '/collections') {
+    return {
+      view: 'store',
+      storePage: 'collections',
+      adminTab: 'products',
+      productId: null,
+      collectionSlug: null,
+      isCart: false,
+    };
+  }
+
+  if (rawPath.startsWith('/collections/')) {
+    const slug = decodeURIComponent(rawPath.replace('/collections/', ''));
+    return {
+      view: 'store',
+      storePage: 'shop',
+      adminTab: 'products',
+      productId: null,
+      collectionSlug: slug,
+      isCart: false,
+    };
+  }
+
+  if (rawPath.startsWith('/product/') || rawPath.startsWith('/products/')) {
+    const slugOrId = decodeURIComponent(
+      rawPath.startsWith('/product/')
+        ? rawPath.replace('/product/', '')
+        : rawPath.replace('/products/', '')
+    );
+    return {
+      view: 'store',
+      storePage: 'product',
+      adminTab: 'products',
+      productId: slugOrId,
+      collectionSlug: null,
+      isCart: false,
+    };
+  }
+
+  return {
+    view: 'store',
+    storePage: 'home',
+    adminTab: 'products',
+    productId: null,
+    collectionSlug: null,
+    isCart: false,
+  };
+}
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Navigation & Mode
-  const [activeView, setActiveView] = useState<'store' | 'admin'>('store');
-  const [adminTab, setAdminTab] = useState<AdminTab>('products');
-  const [pendingAdminTab, setPendingAdminTab] = useState<AdminTab | null>(null);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const initialRoute = parseCurrentRoute();
 
   // Password Authentication State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
@@ -140,11 +251,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
   });
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  const [storePage, setStorePage] = useState<'home' | 'shop' | 'collections' | 'product'>('home');
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedCollectionSlug, setSelectedCollectionSlug] = useState<string | null>(null);
+  // Navigation & Mode initialized directly from browser URL
+  const [activeView, setActiveView] = useState<'store' | 'admin'>(initialRoute.view);
+  const [adminTab, setAdminTab] = useState<AdminTab>(initialRoute.adminTab);
+  const [pendingAdminTab, setPendingAdminTab] = useState<AdminTab | null>(
+    initialRoute.view === 'admin' ? initialRoute.adminTab : null
+  );
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(() => {
+    try {
+      const isAuth = localStorage.getItem(STORAGE_KEYS.AUTH) === 'true';
+      return initialRoute.view === 'admin' && !isAuth;
+    } catch {
+      return false;
+    }
+  });
+
+  const [storePage, setStorePage] = useState<'home' | 'shop' | 'collections' | 'product'>(
+    initialRoute.storePage
+  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    initialRoute.productId
+  );
+  const [selectedCollectionSlug, setSelectedCollectionSlug] = useState<string | null>(
+    initialRoute.collectionSlug
+  );
 
   // Entities
   const [products, setProducts] = useState<Product[]>(() => {
@@ -205,8 +338,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(initialRoute.isCart);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // PushState Navigation Helper
+  const navigate = (url: string) => {
+    if (typeof window !== 'undefined' && window.location.pathname + window.location.search !== url) {
+      window.history.pushState({}, '', url);
+    }
+  };
+
+  // Sync state on browser back / forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseCurrentRoute();
+      setActiveView(route.view);
+      setStorePage(route.storePage);
+      setSelectedProductId(route.productId);
+      setSelectedCollectionSlug(route.collectionSlug);
+      setIsCartOpen(route.isCart);
+      if (route.view === 'admin') {
+        setAdminTab(route.adminTab);
+        if (!isAdminAuthenticated) {
+          setPendingAdminTab(route.adminTab);
+          setIsLoginModalOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAdminAuthenticated]);
 
   // Local storage synchronization
   useEffect(() => {
@@ -261,10 +423,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch {}
       setIsLoginModalOpen(false);
       setActiveView('admin');
-      if (pendingAdminTab) {
-        setAdminTab(pendingAdminTab);
-        setPendingAdminTab(null);
-      }
+      const targetTab = pendingAdminTab || adminTab || 'products';
+      setAdminTab(targetTab);
+      navigate(`/admin/${targetTab}`);
+      setPendingAdminTab(null);
       showToast('Admin dashboard unlocked');
       return true;
     } else {
@@ -279,18 +441,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.removeItem(STORAGE_KEYS.AUTH);
     } catch {}
     setActiveView('store');
+    navigateToHome();
     showToast('Logged out of admin dashboard', 'info');
   };
 
   // Cross-Navigation Actions
   const openAdminTab = (tab: AdminTab) => {
+    const targetTab = tab === 'storefront' ? 'store-design' : tab;
+    const url = `/admin/${targetTab}`;
     if (!isAdminAuthenticated) {
-      setPendingAdminTab(tab);
+      setPendingAdminTab(targetTab);
       setIsLoginModalOpen(true);
+      navigate(url);
       return;
     }
     setActiveView('admin');
-    setAdminTab(tab);
+    setAdminTab(targetTab);
+    navigate(url);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -299,40 +466,82 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPendingAdminTab('products');
       setEditingProductId(productId);
       setIsLoginModalOpen(true);
+      navigate('/admin/products');
       return;
     }
     setActiveView('admin');
     setAdminTab('products');
     setEditingProductId(productId);
+    navigate('/admin/products');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Public Store Navigation Actions
   const navigateToHome = () => {
+    setActiveView('store');
     setStorePage('home');
     setSelectedProductId(null);
     setSelectedCollectionSlug(null);
+    setIsCartOpen(false);
+    navigate('/');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const navigateToShop = (collectionSlug?: string) => {
+    setActiveView('store');
     setStorePage('shop');
     setSelectedCollectionSlug(collectionSlug || null);
     setSelectedProductId(null);
+    setIsCartOpen(false);
+    const url = collectionSlug
+      ? `/shop?collection=${encodeURIComponent(collectionSlug)}`
+      : '/shop';
+    navigate(url);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const navigateToProduct = (productId: string) => {
-    setSelectedProductId(productId);
+  const navigateToProduct = (productIdOrSlug: string) => {
+    const prod = products.find(
+      (p) => p.id === productIdOrSlug || p.slug === productIdOrSlug
+    );
+    const identifier = prod?.slug || prod?.id || productIdOrSlug;
+    setActiveView('store');
+    setSelectedProductId(identifier);
     setStorePage('product');
+    setIsCartOpen(false);
+    navigate(`/product/${encodeURIComponent(identifier)}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const navigateToCollections = () => {
+    setActiveView('store');
     setStorePage('collections');
     setSelectedProductId(null);
     setSelectedCollectionSlug(null);
+    setIsCartOpen(false);
+    navigate('/collections');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSetIsCartOpen = (open: boolean) => {
+    setIsCartOpen(open);
+    if (open) {
+      if (activeView === 'store' && window.location.pathname !== '/cart') {
+        window.history.pushState({ modal: 'cart' }, '', '/cart');
+      }
+    } else {
+      if (window.location.pathname === '/cart') {
+        if (storePage === 'shop') {
+          navigate(selectedCollectionSlug ? `/shop?collection=${encodeURIComponent(selectedCollectionSlug)}` : '/shop');
+        } else if (storePage === 'product' && selectedProductId) {
+          navigate(`/product/${encodeURIComponent(selectedProductId)}`);
+        } else if (storePage === 'collections') {
+          navigate('/collections');
+        } else {
+          navigate('/');
+        }
+      }
+    }
   };
 
   // Product Actions (Add, Edit, Remove, Duplicate, Batch)
@@ -356,8 +565,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteProduct = (id: string) => {
     const prod = products.find((p) => p.id === id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
-    // Also cleanup cart
+    // Also cleanup cart and current view if viewing deleted product
     setCart((prev) => prev.filter((item) => item.productId !== id));
+    if (selectedProductId === id || (prod && selectedProductId === prod.slug)) {
+      setSelectedProductId(null);
+    }
     showToast(`Product ${prod?.name ? `"${prod.name}"` : ''} deleted`, 'info');
   };
 
@@ -428,8 +640,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteCollection = (id: string) => {
     const col = collections.find((c) => c.id === id);
+    if (!col) return;
     setCollections((prev) => prev.filter((c) => c.id !== id));
-    showToast(`Collection ${col?.name ? `"${col.name}"` : ''} deleted`, 'info');
+    // Safe reference update: prevent orphan or broken references, preserve products inside
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.collectionSlug === col.slug ? { ...p, collectionSlug: 'all' } : p
+      )
+    );
+    // If currently browsing this collection, reset collection filter
+    if (selectedCollectionSlug === col.slug) {
+      setSelectedCollectionSlug(null);
+    }
+    showToast(`Collection "${col.name}" deleted (associated products preserved)`, 'info');
   };
 
   const assignProductToCollection = (productId: string, collectionSlug: string) => {
@@ -708,7 +931,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cartCount,
         cartSubtotal,
         isCartOpen,
-        setIsCartOpen,
+        setIsCartOpen: handleSetIsCartOpen,
 
         formatPrice,
         toasts,

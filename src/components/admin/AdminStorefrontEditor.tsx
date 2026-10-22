@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Save,
   Eye,
@@ -36,6 +36,11 @@ export const AdminStorefrontEditor: React.FC = () => {
 
   const [formData, setFormData] = useState({ ...storefrontConfig });
   const [newSectionType, setNewSectionType] = useState<HomepageSectionType>('promo_marquee');
+  const [deleteConfirmSecId, setDeleteConfirmSecId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormData({ ...storefrontConfig });
+  }, [storefrontConfig]);
 
   const heroImagePresets = [
     { label: 'Campaign Longline Parka', url: '/src/assets/images/hero_votex_winter_campaign_1792328359846.jpg' },
@@ -245,14 +250,28 @@ export const AdminStorefrontEditor: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          if (window.confirm(`Remove section "${section.title || info.label}" from homepage?`)) {
+                          if (deleteConfirmSecId === section.id) {
                             removeHomepageSection(section.id);
+                            setDeleteConfirmSecId(null);
+                          } else {
+                            setDeleteConfirmSecId(section.id);
+                            setTimeout(() => {
+                              setDeleteConfirmSecId((prev) => (prev === section.id ? null : prev));
+                            }, 4000);
                           }
                         }}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded cursor-pointer ml-1"
-                        title="Remove Section from Homepage"
+                        className={`p-1.5 rounded cursor-pointer ml-1 transition-all ${
+                          deleteConfirmSecId === section.id
+                            ? 'bg-rose-600 text-white font-bold text-[10px] px-2'
+                            : 'text-rose-600 hover:bg-rose-50 border border-rose-200'
+                        }`}
+                        title={deleteConfirmSecId === section.id ? 'Click again to confirm removal' : 'Remove Section'}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {deleteConfirmSecId === section.id ? (
+                          <span>Confirm?</span>
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </div>
                   </div>

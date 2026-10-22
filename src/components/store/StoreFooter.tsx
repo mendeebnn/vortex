@@ -23,9 +23,47 @@ export const StoreFooter: React.FC = () => {
           
           {/* Brand Col */}
           <div className="md:col-span-5">
-            <span className="text-xl font-black font-brand uppercase tracking-widest block mb-3">
-              {storefrontConfig.storeName}
-            </span>
+            {storefrontConfig.logoType === 'image' && storefrontConfig.logoImageUrl ? (
+              <img
+                src={storefrontConfig.logoImageUrl}
+                alt={storefrontConfig.storeName}
+                style={{ maxHeight: `${storefrontConfig.logoHeight || 32}px` }}
+                className="max-w-[180px] object-contain filter invert mb-3"
+              />
+            ) : (
+              <div className="flex items-center gap-2 mb-3 text-white">
+                {storefrontConfig.logoSymbol === 'monogram' && (
+                  <span className="font-mono text-xs px-1.5 py-0.5 border border-white/80 rounded-xs font-bold leading-none">
+                    [V]
+                  </span>
+                )}
+                {storefrontConfig.logoSymbol === 'chevron' && (
+                  <span className="font-mono text-xs font-bold leading-none">
+                    //
+                  </span>
+                )}
+                {storefrontConfig.logoSymbol === 'diamond' && (
+                  <span className="text-xs leading-none">
+                    ◆
+                  </span>
+                )}
+                {storefrontConfig.logoSymbol === 'grid' && (
+                  <span className="text-[10px] leading-none">
+                    ■
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontFamily: storefrontConfig.logoFontFamily || 'Outfit, sans-serif',
+                    letterSpacing: storefrontConfig.logoLetterSpacing || '0.2em',
+                    fontWeight: storefrontConfig.logoFontWeight || 900,
+                  }}
+                  className="text-xl uppercase tracking-widest leading-none select-none"
+                >
+                  {storefrontConfig.logoText || storefrontConfig.storeName}
+                </span>
+              </div>
+            )}
             <p className="text-xs text-[#737373] max-w-sm leading-relaxed mb-6">
               {storefrontConfig.aboutText}
             </p>

@@ -7,8 +7,8 @@ import {
   Sliders,
   ExternalLink,
   RotateCcw,
-  LogOut,
   Lock,
+  Type,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AdminTab } from '../../types';
@@ -21,7 +21,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const {
     adminTab,
     setAdminTab,
+    openAdminTab,
     setActiveView,
+    navigateToHome,
     storefrontConfig,
     orders,
     products,
@@ -35,7 +37,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navItems: { tab: AdminTab; label: string; icon: React.ElementType; badge?: number }[] = [
     { tab: 'products', label: 'Products', icon: Package, badge: products.length },
     { tab: 'collections', label: 'Collections', icon: Layers },
-    { tab: 'storefront', label: 'Storefront Editor', icon: LayoutTemplate },
+    { tab: 'store-design', label: 'Store Design', icon: LayoutTemplate },
+    { tab: 'logo-studio', label: 'Logo Studio', icon: Type },
     { tab: 'orders', label: 'Orders', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
     { tab: 'settings', label: 'Store Settings', icon: Sliders },
   ];
@@ -87,7 +90,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </button>
 
             <button
-              onClick={() => setActiveView('store')}
+              onClick={() => navigateToHome()}
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white text-[#0A0A0A] hover:bg-neutral-200 text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-sm active:scale-95"
             >
               <span>View Store</span>
@@ -110,11 +113,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none border-t border-neutral-900">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = adminTab === item.tab;
+            const active =
+              adminTab === item.tab ||
+              (item.tab === 'store-design' && adminTab === 'storefront');
             return (
               <button
                 key={item.tab}
-                onClick={() => setAdminTab(item.tab)}
+                onClick={() => openAdminTab(item.tab)}
                 className={`flex items-center gap-2 px-4 py-3 text-xs font-mono uppercase tracking-wider transition-colors cursor-pointer shrink-0 border-b-2 ${
                   active
                     ? 'border-white text-white font-bold bg-neutral-900/60'

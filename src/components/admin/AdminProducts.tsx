@@ -18,6 +18,7 @@ import {
   Filter,
   Sparkles,
   AlertCircle,
+  Upload,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductVariantColor } from '../../types';
@@ -194,6 +195,37 @@ export const AdminProducts: React.FC = () => {
 
   const handleRemoveImage = (index: number) => {
     setGalleryImages(galleryImages.filter((_, i) => i !== index));
+  };
+
+  // Local File Upload Handlers (FileReader base64 dataURL)
+  const handlePrimaryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          setImage(reader.result as string);
+          showToast('Product primary image loaded');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGalleryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result) {
+            setGalleryImages((prev) => [...prev, reader.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+      showToast(`Added ${files.length} gallery angle(s)`);
+    }
   };
 
   // Safe delete handler without window.confirm
@@ -762,17 +794,31 @@ export const AdminProducts: React.FC = () => {
                 </div>
               </div>
 
-              {/* Main Image URL & Presets */}
+              {/* Main Image URL, Upload & Presets */}
               <div className="p-4 bg-[#F7F7F7] border border-[#E5E5E5] space-y-2">
-                <label className="block font-bold uppercase tracking-wider text-[#0A0A0A]">
-                  Primary Product Image URL *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold uppercase tracking-wider text-[#0A0A0A]">
+                    Primary Product Image *
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E5E5E5] hover:border-[#0A0A0A] cursor-pointer text-[10px] font-mono font-bold uppercase rounded shadow-xs">
+                    <Upload className="w-3 h-3 text-[#0A0A0A]" />
+                    <span>Upload Image File</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePrimaryImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
                 <div className="flex gap-2">
                   <input
                     type="text"
                     required
                     value={image}
                     onChange={(e) => setImage(e.target.value)}
+                    placeholder="Enter image URL or click Upload above..."
                     className="flex-1 px-3.5 py-2 bg-white border border-[#E5E5E5] focus:border-[#0A0A0A] text-[#0A0A0A] font-mono text-[11px] focus:outline-none"
                   />
                   {image && (
@@ -969,6 +1015,17 @@ export const AdminProducts: React.FC = () => {
                   <label className="font-bold uppercase tracking-wider text-[#0A0A0A] flex items-center gap-1.5">
                     <ImageIcon className="w-3.5 h-3.5" />
                     <span>Additional Gallery Angles ({galleryImages.length})</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E5E5E5] hover:border-[#0A0A0A] cursor-pointer text-[10px] font-mono font-bold uppercase rounded shadow-xs">
+                    <Upload className="w-3 h-3 text-[#0A0A0A]" />
+                    <span>+ Upload Photos</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleGalleryImageUpload}
+                      className="hidden"
+                    />
                   </label>
                 </div>
 

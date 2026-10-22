@@ -18,6 +18,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ onOpenSearch }) => {
     navigateToCollections,
     storePage,
     selectedCollectionSlug,
+    openAdminTab,
   } = useApp();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,11 +45,43 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ onOpenSearch }) => {
               <img
                 src={storefrontConfig.logoImageUrl}
                 alt={storefrontConfig.storeName}
-                className="h-8 max-w-[160px] object-contain"
+                style={{ maxHeight: `${storefrontConfig.logoHeight || 32}px` }}
+                className="max-w-[200px] object-contain"
               />
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xl sm:text-2xl font-black tracking-widest text-[#0A0A0A] uppercase font-brand">
+              <div
+                className="flex items-center gap-2"
+                style={{ color: storefrontConfig.logoColor || '#0A0A0A' }}
+              >
+                {storefrontConfig.logoSymbol === 'monogram' && (
+                  <span className="font-mono text-xs px-1.5 py-0.5 border border-current rounded-xs font-bold leading-none">
+                    [V]
+                  </span>
+                )}
+                {storefrontConfig.logoSymbol === 'chevron' && (
+                  <span className="font-mono text-xs font-bold leading-none">
+                    //
+                  </span>
+                )}
+                {storefrontConfig.logoSymbol === 'diamond' && (
+                  <span className="text-xs leading-none">
+                    ◆
+                  </span>
+                )}
+                {storefrontConfig.logoSymbol === 'grid' && (
+                  <span className="text-[10px] leading-none">
+                    ■
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontFamily: storefrontConfig.logoFontFamily || 'Outfit, sans-serif',
+                    letterSpacing: storefrontConfig.logoLetterSpacing || '0.2em',
+                    fontWeight: storefrontConfig.logoFontWeight || 900,
+                    fontSize: storefrontConfig.logoFontSize ? `${storefrontConfig.logoFontSize}px` : undefined,
+                  }}
+                  className="text-xl sm:text-2xl tracking-widest uppercase select-none leading-none"
+                >
                   {storefrontConfig.logoText || storefrontConfig.storeName}
                 </span>
               </div>
@@ -206,10 +239,10 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ onOpenSearch }) => {
 
             <button
               onClick={() => {
-                setActiveView('admin');
+                openAdminTab('products');
                 setMobileMenuOpen(false);
               }}
-              className="px-3 py-1.5 rounded bg-[#0A0A0A] text-white text-xs font-mono font-medium"
+              className="px-3 py-1.5 rounded bg-[#0A0A0A] text-white text-xs font-mono font-medium cursor-pointer"
             >
               Admin Dashboard
             </button>

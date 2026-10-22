@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, X, Eye, Layers, ArrowUpRight, Check, PackagePlus, MinusCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Eye, Layers, ArrowUpRight, Check, PackagePlus, MinusCircle, Upload } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Collection } from '../../types';
 
@@ -13,6 +13,7 @@ export const AdminCollections: React.FC = () => {
     assignProductToCollection,
     navigateToShop,
     setActiveView,
+    showToast,
   } = useApp();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +24,22 @@ export const AdminCollections: React.FC = () => {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [isFeatured, setIsFeatured] = useState(true);
+  const [modalDeleteConfirm, setModalDeleteConfirm] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          setImage(reader.result as string);
+          showToast('Collection cover image loaded');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Selected collection for inspecting and managing products inside it
   const [selectedColForProducts, setSelectedColForProducts] = useState<string | null>(null);
@@ -43,6 +60,8 @@ export const AdminCollections: React.FC = () => {
     setSlug('');
     setDescription('');
     setImage(imagePresets[0].url);
+    setIsFeatured(true);
+    setModalDeleteConfirm(false);
     setIsModalOpen(true);
   };
 
@@ -52,26 +71,31 @@ export const AdminCollections: React.FC = () => {
     setSlug(col.slug);
     setDescription(col.description || '');
     setImage(col.image || '');
+    setIsFeatured(col.isFeatured ?? true);
+    setModalDeleteConfirm(false);
     setIsModalOpen(true);
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalSlug = (slug || name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const cleanName = name.trim() || 'New Collection';
+    const finalSlug = (slug || cleanName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `col-${Date.now()}`;
 
     if (editingCollection) {
       updateCollection(editingCollection.id, {
-        name,
+        name: cleanName,
         slug: finalSlug,
         description,
         image,
+        isFeatured,
       });
     } else {
       addCollection({
-        name,
+        name: cleanName,
         slug: finalSlug,
         description,
         image,
+        isFeatured,
       });
     }
     setIsModalOpen(false);
@@ -350,25 +374,48 @@ export const AdminCollections: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block font-bold uppercase tracking-wider text-[#0A0A0A] mb-1">
-                  Cover Image URL
-                </label>
-                <input
-                  type="text"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="Paste image URL..."
-                  className="w-full px-3.5 py-2.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-[#0A0A0A] font-mono text-[11px] focus:outline-none mb-2"
-                />
+              {/* Cover Image URL, Upload & Presets */}
+              <div className="p-3 bg-[#F7F7F7] border border-[#E5E5E5] space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold uppercase tracking-wider text-[#0A0A0A]">
+                    Cover Image
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#E5E5E5] hover:border-[#0A0A0A] cursor-pointer text-[10px] font-mono font-bold uppercase rounded shadow-xs">
+                    <Upload className="w-3 h-3 text-[#0A0A0A]" />
+                    <span>Upload Cover File</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
 
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={image}
+                    onChange={(e) => setImage(e.target.value)}
+                    placeholder="Paste image URL or click Upload..."
+                    className="flex-1 px-3.5 py-2 bg-white border border-[#E5E5E5] focus:border-[#0A0A0A] text-[#0A0A0A] font-mono text-[11px] focus:outline-none"
+                  />
+                  {image && (
+                    <img
+                      src={image}
+                      alt="Preview"
+                      className="w-8 h-8 object-cover border border-[#E5E5E5] bg-white shrink-0"
+                    />
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
                   {imagePresets.map((preset) => (
                     <button
                       key={preset.url}
                       type="button"
                       onClick={() => setImage(preset.url)}
-                      className="px-2 py-1 text-[10px] font-mono border border-[#E5E5E5] bg-[#F7F7F7] hover:border-[#0A0A0A] rounded"
+                      className="px-2 py-0.5 text-[10px] font-mono border border-[#E5E5E5] bg-white hover:border-[#0A0A0A] rounded cursor-pointer"
                     >
                       {preset.label}
                     </button>
@@ -376,20 +423,40 @@ export const AdminCollections: React.FC = () => {
                 </div>
               </div>
 
+              {/* Publication Status */}
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-[#0A0A0A]">
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                    className="rounded border-[#E5E5E5] w-4 h-4 text-[#0A0A0A] focus:ring-0 cursor-pointer"
+                  />
+                  <span>Publish & Feature on Storefront</span>
+                </label>
+              </div>
+
               <div className="pt-4 border-t border-[#E5E5E5] flex items-center justify-between">
                 {editingCollection ? (
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm(`Delete collection "${editingCollection.name}"?`)) {
+                      if (modalDeleteConfirm) {
                         deleteCollection(editingCollection.id);
                         setIsModalOpen(false);
+                      } else {
+                        setModalDeleteConfirm(true);
+                        setTimeout(() => setModalDeleteConfirm(false), 4000);
                       }
                     }}
-                    className="text-rose-600 hover:text-rose-700 font-bold uppercase text-xs flex items-center gap-1 cursor-pointer"
+                    className={`font-bold uppercase text-xs flex items-center gap-1.5 px-3 py-1.5 rounded transition-all cursor-pointer ${
+                      modalDeleteConfirm
+                        ? 'bg-rose-700 text-white animate-pulse'
+                        : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
+                    }`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete</span>
+                    <span>{modalDeleteConfirm ? 'Click to Confirm Delete' : 'Delete Collection'}</span>
                   </button>
                 ) : (
                   <div />
@@ -399,7 +466,7 @@ export const AdminCollections: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-5 py-2.5 border border-[#E5E5E5] hover:border-[#0A0A0A] text-[#0A0A0A] uppercase font-bold"
+                    className="px-5 py-2.5 border border-[#E5E5E5] hover:border-[#0A0A0A] text-[#0A0A0A] uppercase font-bold cursor-pointer"
                   >
                     Cancel
                   </button>

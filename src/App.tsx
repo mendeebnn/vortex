@@ -20,11 +20,12 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { AdminProducts } from './components/admin/AdminProducts';
 import { AdminCollections } from './components/admin/AdminCollections';
 import { AdminStorefrontEditor } from './components/admin/AdminStorefrontEditor';
+import { AdminLogoStudio } from './components/admin/AdminLogoStudio';
 import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminSettings } from './components/admin/AdminSettings';
 import { AdminLoginModal } from './components/admin/AdminLoginModal';
 
-import { Check, Info, AlertCircle } from 'lucide-react';
+import { Check, Info, AlertCircle, Lock } from 'lucide-react';
 
 function StoreRouter() {
   const {
@@ -33,6 +34,7 @@ function StoreRouter() {
     openAdminTab,
     isAdminAuthenticated,
     setIsLoginModalOpen,
+    navigateToHome,
     storePage,
     storefrontConfig,
     toasts,
@@ -78,12 +80,46 @@ function StoreRouter() {
   };
 
   // Render Password-Protected Private Admin Dashboard
-  if (activeView === 'admin' && isAdminAuthenticated) {
+  if (activeView === 'admin') {
+    if (!isAdminAuthenticated) {
+      return (
+        <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col items-center justify-center p-4">
+          <AdminLoginModal />
+          <div className="text-center space-y-4 max-w-sm">
+            <div className="w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center mx-auto text-white">
+              <Lock className="w-5 h-5 text-neutral-400" />
+            </div>
+            <h1 className="text-lg font-black font-brand uppercase tracking-wider">
+              VOTEX Admin Portal
+            </h1>
+            <p className="text-xs font-mono text-neutral-400">
+              Private management portal. Enter your password to continue.
+            </p>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="px-5 py-2.5 bg-white text-[#0A0A0A] font-bold text-xs uppercase tracking-wider rounded cursor-pointer hover:bg-neutral-200 shadow-sm active:scale-95 transition-all"
+              >
+                Enter Password
+              </button>
+              <button
+                onClick={() => navigateToHome()}
+                className="px-4 py-2.5 border border-neutral-800 text-neutral-400 hover:text-white text-xs font-mono rounded cursor-pointer transition-colors"
+              >
+                Back to Store
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <AdminLayout>
         {adminTab === 'products' && <AdminProducts />}
         {adminTab === 'collections' && <AdminCollections />}
-        {adminTab === 'storefront' && <AdminStorefrontEditor />}
+        {(adminTab === 'storefront' || adminTab === 'store-design') && <AdminStorefrontEditor />}
+        {adminTab === 'logo-studio' && <AdminLogoStudio />}
         {adminTab === 'orders' && <AdminOrders />}
         {adminTab === 'settings' && <AdminSettings />}
 

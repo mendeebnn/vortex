@@ -88,7 +88,20 @@ export interface StorefrontConfig {
   aboutText: string;
   promoMarqueeText?: string;
 
+  // Logo Customization Options
+  logoFontFamily?: string;
+  logoLetterSpacing?: string;
+  logoFontWeight?: number | string;
+  logoFontSize?: number;
+  logoHeight?: number;
+  logoColor?: string;
+  logoSymbol?: 'none' | 'monogram' | 'chevron' | 'diamond' | 'grid';
+
   // Contact & Brand settings
+  storeSlug?: string;
+  storeDescription?: string;
+  trackInventory?: boolean;
+  storeStatus?: 'published' | 'maintenance' | 'draft';
   instagramHandle: string;
   instagramUrl: string;
   phoneHotline: string;
@@ -121,4 +134,11 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'shipped' | 'completed' | 'cancelled';
 }
 
-export type AdminTab = 'products' | 'collections' | 'storefront' | 'orders' | 'settings';
+export type AdminTab =
+  | 'products'
+  | 'collections'
+  | 'storefront'
+  | 'store-design'
+  | 'logo-studio'
+  | 'orders'
+  | 'settings';
