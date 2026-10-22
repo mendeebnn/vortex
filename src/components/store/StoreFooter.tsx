@@ -8,8 +8,7 @@ export const StoreFooter: React.FC = () => {
     collections,
     navigateToShop,
     navigateToCollections,
-    setActiveView,
-    setAdminTab,
+    openAdminTab,
   } = useApp();
 
   const scrollToTop = () => {
@@ -93,18 +92,6 @@ export const StoreFooter: React.FC = () => {
                 <Phone className="w-3.5 h-3.5 text-white shrink-0" />
                 <span className="font-mono text-neutral-300">{storefrontConfig.phoneHotline}</span>
               </div>
-              <div className="pt-3">
-                <button
-                  onClick={() => {
-                    setActiveView('admin');
-                    setAdminTab('storefront');
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-mono text-neutral-400 hover:text-white border border-neutral-800 hover:border-neutral-700 px-3 py-1.5 rounded transition-colors"
-                >
-                  <Lock className="w-3 h-3 text-neutral-500" />
-                  <span>Store Owner Dashboard</span>
-                </button>
-              </div>
             </div>
           </div>
 
@@ -112,8 +99,18 @@ export const StoreFooter: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-[#737373]">
-          <div>
-            © {new Date().getFullYear()} {storefrontConfig.storeName}. Powered by Shopify-Inspired Architecture.
+          <div className="flex items-center flex-wrap gap-x-3">
+            <span>© {new Date().getFullYear()} {storefrontConfig.storeName}. All rights reserved.</span>
+            <span className="text-neutral-700">·</span>
+            {/* Discreet Admin / Staff Link */}
+            <button
+              onClick={() => openAdminTab('products')}
+              className="text-neutral-600 hover:text-neutral-300 inline-flex items-center gap-1 cursor-pointer transition-colors text-[11px]"
+              title="Staff / Admin Portal (Password Protected)"
+            >
+              <Lock className="w-2.5 h-2.5 opacity-50" />
+              <span>Admin</span>
+            </button>
           </div>
 
           <button

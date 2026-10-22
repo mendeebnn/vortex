@@ -27,6 +27,7 @@ export const AdminCollections: React.FC = () => {
   // Selected collection for inspecting and managing products inside it
   const [selectedColForProducts, setSelectedColForProducts] = useState<string | null>(null);
   const [productToAddId, setProductToAddId] = useState<string>('');
+  const [deleteConfirmColId, setDeleteConfirmColId] = useState<string | null>(null);
 
   const imagePresets = [
     { label: 'Winter Footwear', url: '/src/assets/images/product_sneaker_polar_black_1792328359882.jpg' },
@@ -242,14 +243,28 @@ export const AdminCollections: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm(`Delete collection "${col.name}"? Products inside will remain in the catalogue.`)) {
+                      if (deleteConfirmColId === col.id) {
                         deleteCollection(col.id);
+                        setDeleteConfirmColId(null);
+                      } else {
+                        setDeleteConfirmColId(col.id);
+                        setTimeout(() => {
+                          setDeleteConfirmColId((prev) => (prev === col.id ? null : prev));
+                        }, 4000);
                       }
                     }}
-                    className="p-1.5 text-[#737373] hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
-                    title="Delete Collection"
+                    className={`p-1.5 rounded cursor-pointer transition-all ${
+                      deleteConfirmColId === col.id
+                        ? 'bg-rose-600 text-white font-bold px-2 text-[10px]'
+                        : 'text-[#737373] hover:text-rose-600 hover:bg-rose-50'
+                    }`}
+                    title={deleteConfirmColId === col.id ? 'Click again to permanently delete' : 'Delete Collection'}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    {deleteConfirmColId === col.id ? (
+                      <span>Confirm?</span>
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
                   </button>
                 </div>
               </div>

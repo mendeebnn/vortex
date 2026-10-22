@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Check, Edit2 } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import { Product } from '../../types';
 import { useApp } from '../../context/AppContext';
 
@@ -8,7 +8,7 @@ interface StoreProductCardProps {
 }
 
 export const StoreProductCard: React.FC<StoreProductCardProps> = ({ product }) => {
-  const { formatPrice, addToCart, navigateToProduct, openAdminWithProduct } = useApp();
+  const { formatPrice, addToCart, navigateToProduct } = useApp();
   const [justAdded, setJustAdded] = useState(false);
 
   const isOutOfStock = product.inventory <= 0;
@@ -21,11 +21,6 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({ product }) =
     addToCart(product, defaultSize, defaultColor, 1);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1500);
-  };
-
-  const handleQuickEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    openAdminWithProduct(product.id);
   };
 
   return (
@@ -61,15 +56,6 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({ product }) =
             </span>
           )}
         </div>
-
-        {/* Quick Admin Edit button on hover */}
-        <button
-          onClick={handleQuickEdit}
-          className="absolute top-2.5 right-2.5 w-7 h-7 rounded bg-white text-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white border border-[#E5E5E5] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm z-10"
-          title="Edit product in Admin"
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-        </button>
 
         {/* Quick Add Button */}
         {!isOutOfStock && (

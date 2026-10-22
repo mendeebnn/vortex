@@ -68,19 +68,9 @@ export const StoreProductDetail: React.FC<StoreProductDetailProps> = ({ onDirect
             <span>Back to Products</span>
           </button>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-[#737373] uppercase hidden sm:inline">
-              SKU: {product.sku || product.id}
-            </span>
-            <button
-              onClick={() => openAdminWithProduct(product.id)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F7F7F7] border border-[#E5E5E5] hover:border-[#0A0A0A] text-xs font-mono text-[#0A0A0A] rounded cursor-pointer transition-colors"
-              title="Edit this product in Admin"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>Edit in Admin</span>
-            </button>
-          </div>
+          <span className="text-xs font-mono text-[#737373] uppercase">
+            SKU: {product.sku || product.id}
+          </span>
         </div>
 
         {/* Product Grid Split */}

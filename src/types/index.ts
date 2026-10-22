@@ -95,6 +95,7 @@ export interface StorefrontConfig {
   storeAddress: string;
   currency: Currency;
   freeShippingThreshold: number;
+  adminPassword?: string;
 }
 
 export interface OrderItem {

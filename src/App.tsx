@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { StoreHeader } from './components/store/StoreHeader';
 import { StoreHero } from './components/store/StoreHero';
@@ -22,31 +22,19 @@ import { AdminCollections } from './components/admin/AdminCollections';
 import { AdminStorefrontEditor } from './components/admin/AdminStorefrontEditor';
 import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminSettings } from './components/admin/AdminSettings';
+import { AdminLoginModal } from './components/admin/AdminLoginModal';
 
-import {
-  Check,
-  Info,
-  AlertCircle,
-  Settings,
-  Package,
-  LayoutTemplate,
-  ShoppingBag,
-  Plus,
-  Layers,
-  ChevronUp,
-} from 'lucide-react';
+import { Check, Info, AlertCircle } from 'lucide-react';
 
 function StoreRouter() {
   const {
     activeView,
-    setActiveView,
     adminTab,
-    setAdminTab,
     openAdminTab,
+    isAdminAuthenticated,
+    setIsLoginModalOpen,
     storePage,
     storefrontConfig,
-    orders,
-    products,
     toasts,
   } = useApp();
 
@@ -59,17 +47,38 @@ function StoreRouter() {
     quantity: number;
   } | null>(null);
 
-  const [isAdminQuickBarOpen, setIsAdminQuickBarOpen] = useState(false);
+  // Discreet Admin Keyboard shortcut (Alt + A or Ctrl + Shift + A) and URL hash #admin
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
+        e.preventDefault();
+        openAdminTab('products');
+      }
+    };
 
-  const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
+    const handleHash = () => {
+      if (window.location.hash === '#admin') {
+        openAdminTab('products');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('hashchange', handleHash);
+    handleHash();
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hashchange', handleHash);
+    };
+  }, [openAdminTab]);
 
   const handleDirectCheckout = (product: any, size: string, color: string, quantity: number) => {
     setDirectCheckoutItem({ product, size, color, quantity });
     setIsCheckoutOpen(true);
   };
 
-  // Render Private Admin Dashboard
-  if (activeView === 'admin') {
+  // Render Password-Protected Private Admin Dashboard
+  if (activeView === 'admin' && isAdminAuthenticated) {
     return (
       <AdminLayout>
         {adminTab === 'products' && <AdminProducts />}
@@ -100,7 +109,7 @@ function StoreRouter() {
     );
   }
 
-  // Render Public Storefront
+  // Render Public Storefront (Clean, Minimal, No Floating Admin Bars)
   return (
     <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col font-sans selection:bg-[#0A0A0A] selection:text-white">
       {/* Public Store Header */}
@@ -156,8 +165,11 @@ function StoreRouter() {
         )}
       </main>
 
-      {/* Public Footer */}
+      {/* Public Footer with Discreet Admin link */}
       <StoreFooter />
+
+      {/* Password Protected Admin Login Modal */}
+      <AdminLoginModal />
 
       {/* Cart Drawer */}
       <StoreCartDrawer
@@ -182,104 +194,6 @@ function StoreRouter() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
       />
-
-      {/* Connected Floating Admin Bar in Bottom Corner */}
-      <div className="fixed bottom-5 left-5 z-40 flex flex-col items-start gap-2">
-        {/* Quick Drawer if expanded */}
-        {isAdminQuickBarOpen && (
-          <div className="bg-[#0A0A0A] text-white border border-neutral-800 shadow-2xl p-3 rounded-lg flex flex-col gap-1.5 text-xs font-mono w-56 animate-in slide-in-from-bottom-2 fade-in duration-150">
-            <div className="text-[10px] text-neutral-400 uppercase tracking-widest px-2 py-1 border-b border-neutral-800 flex items-center justify-between">
-              <span>ADMIN CONTROLS</span>
-              <span className="text-emerald-400">● LIVE</span>
-            </div>
-
-            <button
-              onClick={() => openAdminTab('products')}
-              className="flex items-center justify-between px-2.5 py-1.5 hover:bg-neutral-800 rounded text-left cursor-pointer transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Package className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Products</span>
-              </span>
-              <span className="text-[10px] bg-neutral-800 px-1.5 py-0.2 rounded font-bold">
-                {products.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => openAdminTab('collections')}
-              className="flex items-center justify-between px-2.5 py-1.5 hover:bg-neutral-800 rounded text-left cursor-pointer transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Collections</span>
-              </span>
-            </button>
-
-            <button
-              onClick={() => openAdminTab('storefront')}
-              className="flex items-center justify-between px-2.5 py-1.5 hover:bg-neutral-800 rounded text-left cursor-pointer transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <LayoutTemplate className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Storefront Editor</span>
-              </span>
-            </button>
-
-            <button
-              onClick={() => openAdminTab('orders')}
-              className="flex items-center justify-between px-2.5 py-1.5 hover:bg-neutral-800 rounded text-left cursor-pointer transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <ShoppingBag className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Orders</span>
-              </span>
-              {pendingOrdersCount > 0 && (
-                <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-bold">
-                  {pendingOrdersCount} new
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => openAdminTab('settings')}
-              className="flex items-center justify-between px-2.5 py-1.5 hover:bg-neutral-800 rounded text-left cursor-pointer transition-colors border-t border-neutral-800/80 pt-2"
-            >
-              <span className="flex items-center gap-2">
-                <Settings className="w-3.5 h-3.5 text-neutral-400" />
-                <span>Store Settings</span>
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Floating Admin Trigger Pill */}
-        <div className="flex items-center gap-1.5 bg-[#0A0A0A] text-white border border-neutral-700 shadow-2xl rounded-full p-1 pl-3.5 group">
-          <button
-            onClick={() => openAdminTab('storefront')}
-            className="flex items-center gap-2 text-xs font-mono tracking-wider cursor-pointer hover:text-neutral-300"
-            title="Open Admin Dashboard"
-          >
-            <Settings className="w-3.5 h-3.5 text-neutral-400 group-hover:rotate-45 transition-transform" />
-            <span className="font-bold">ADMIN</span>
-            {pendingOrdersCount > 0 && (
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setIsAdminQuickBarOpen(!isAdminQuickBarOpen)}
-            className="p-1 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-full cursor-pointer ml-1"
-            title={isAdminQuickBarOpen ? 'Collapse menu' : 'Expand menu'}
-          >
-            <ChevronUp
-              className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                isAdminQuickBarOpen ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-        </div>
-      </div>
 
       {/* Store Toast Stack */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0">

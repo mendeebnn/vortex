@@ -171,11 +171,11 @@ export const DEFAULT_STOREFRONT_CONFIG: StorefrontConfig = {
   logoType: 'text',
   logoText: 'VOTEX',
   logoImageUrl: '',
-  announcementActive: true,
+  announcementActive: false,
   announcementText: 'FREE EXPRESS COURIER DELIVERY IN ULAANBAATAR ON ORDERS OVER 200,000 ₮',
+  adminPassword: 'admin',
   homepageSections: [
     { id: 'sec-hero', type: 'hero', enabled: true },
-    { id: 'sec-promo', type: 'promo_marquee', title: 'WINTER CAMPAIGN 2026 · SUB-ZERO COLD TESTED (-25°C) · TURKISH IMPORTS · CITY DELIVERY 24-48H', enabled: true },
     { id: 'sec-featured', type: 'featured', title: 'Featured Products', enabled: true },
     { id: 'sec-collections', type: 'collections', title: 'Browse by Category', enabled: true },
     { id: 'sec-new', type: 'new_arrivals', title: 'New Arrivals', enabled: true },

@@ -26,7 +26,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({ onOpenSearch }) => {
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-[#E5E5E5] transition-colors">
       {/* Top Announcement Bar if configured in Admin */}
       {storefrontConfig.announcementActive && storefrontConfig.announcementText && (
-        <div className="bg-[#0A0A0A] text-white text-[11px] font-mono tracking-wider uppercase py-1.5 px-4 text-center border-b border-neutral-800">
+        <div className="bg-[#0A0A0A] text-white text-[11px] font-mono tracking-wider uppercase py-2 px-4 text-center">
           <span>{storefrontConfig.announcementText}</span>
         </div>
       )}

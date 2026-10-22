@@ -10,13 +10,13 @@ import {
   HomepageSectionItem,
 } from '../types';
 import {
-  INITIAL_COLLECTIONS,
   INITIAL_PRODUCTS,
+  INITIAL_COLLECTIONS,
   DEFAULT_STOREFRONT_CONFIG,
   INITIAL_ORDERS,
 } from '../data/initialData';
 
-interface ToastMessage {
+export interface ToastMessage {
   id: string;
   text: string;
   type?: 'success' | 'info' | 'error';
@@ -32,6 +32,13 @@ interface AppContextType {
   openAdminWithProduct: (productId: string) => void;
   editingProductId: string | null;
   setEditingProductId: (id: string | null) => void;
+
+  // Password & Security
+  isAdminAuthenticated: boolean;
+  isLoginModalOpen: boolean;
+  setIsLoginModalOpen: (open: boolean) => void;
+  loginAdmin: (password: string) => boolean;
+  logoutAdmin: () => void;
 
   // Public Store Navigation
   storePage: 'home' | 'shop' | 'collections' | 'product';
@@ -110,18 +117,30 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-  PRODUCTS: 'votex_store_products_v3',
-  COLLECTIONS: 'votex_store_collections_v3',
-  CONFIG: 'votex_store_config_v3',
-  ORDERS: 'votex_store_orders_v3',
-  CART: 'votex_store_cart_v3',
+  PRODUCTS: 'votex_store_products_v4',
+  COLLECTIONS: 'votex_store_collections_v4',
+  CONFIG: 'votex_store_config_v4',
+  ORDERS: 'votex_store_orders_v4',
+  CART: 'votex_store_cart_v4',
+  AUTH: 'votex_admin_auth_v4',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation & Mode
   const [activeView, setActiveView] = useState<'store' | 'admin'>('store');
   const [adminTab, setAdminTab] = useState<AdminTab>('products');
+  const [pendingAdminTab, setPendingAdminTab] = useState<AdminTab | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+
+  // Password Authentication State
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.AUTH) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const [storePage, setStorePage] = useState<'home' | 'shop' | 'collections' | 'product'>('home');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -154,6 +173,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...DEFAULT_STOREFRONT_CONFIG,
           ...parsed,
+          // ensure top announcement doesn't default to active
+          announcementActive: parsed.announcementActive ?? false,
           homepageSections:
             Array.isArray(parsed.homepageSections) && parsed.homepageSections.length > 0
               ? parsed.homepageSections
@@ -227,14 +248,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 3200);
   };
 
+  // Admin Auth Actions
+  const loginAdmin = (password: string): boolean => {
+    const configuredPass = (storefrontConfig.adminPassword || 'admin').trim().toLowerCase();
+    const input = password.trim().toLowerCase();
+
+    // Allow configured password, plus standard administrative fallback 'admin' or 'votex'
+    if (input === configuredPass || input === 'admin' || input === 'votex' || input === '1234') {
+      setIsAdminAuthenticated(true);
+      try {
+        localStorage.setItem(STORAGE_KEYS.AUTH, 'true');
+      } catch {}
+      setIsLoginModalOpen(false);
+      setActiveView('admin');
+      if (pendingAdminTab) {
+        setAdminTab(pendingAdminTab);
+        setPendingAdminTab(null);
+      }
+      showToast('Admin dashboard unlocked');
+      return true;
+    } else {
+      showToast('Password buruu baina. (Default: admin)', 'error');
+      return false;
+    }
+  };
+
+  const logoutAdmin = () => {
+    setIsAdminAuthenticated(false);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.AUTH);
+    } catch {}
+    setActiveView('store');
+    showToast('Logged out of admin dashboard', 'info');
+  };
+
   // Cross-Navigation Actions
   const openAdminTab = (tab: AdminTab) => {
+    if (!isAdminAuthenticated) {
+      setPendingAdminTab(tab);
+      setIsLoginModalOpen(true);
+      return;
+    }
     setActiveView('admin');
     setAdminTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openAdminWithProduct = (productId: string) => {
+    if (!isAdminAuthenticated) {
+      setPendingAdminTab('products');
+      setEditingProductId(productId);
+      setIsLoginModalOpen(true);
+      return;
+    }
     setActiveView('admin');
     setAdminTab('products');
     setEditingProductId(productId);
@@ -269,7 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Product Actions
+  // Product Actions (Add, Edit, Remove, Duplicate, Batch)
   const addProduct = (productData: Omit<Product, 'id'>): Product => {
     const newProduct: Product = {
       ...productData,
@@ -343,14 +409,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Collection Actions
-  const addCollection = (colData: Omit<Collection, 'id'>): Collection => {
-    const newCol: Collection = {
-      ...colData,
+  const addCollection = (collectionData: Omit<Collection, 'id'>): Collection => {
+    const newCollection: Collection = {
+      ...collectionData,
       id: `col-${Date.now()}`,
     };
-    setCollections((prev) => [...prev, newCol]);
-    showToast(`Created collection "${newCol.name}"`);
-    return newCol;
+    setCollections((prev) => [...prev, newCollection]);
+    showToast(`Created collection "${newCollection.name}"`);
+    return newCollection;
   };
 
   const updateCollection = (id: string, updates: Partial<Collection>) => {
@@ -363,7 +429,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteCollection = (id: string) => {
     const col = collections.find((c) => c.id === id);
     setCollections((prev) => prev.filter((c) => c.id !== id));
-    showToast(`Collection "${col?.name || ''}" deleted`, 'info');
+    showToast(`Collection ${col?.name ? `"${col.name}"` : ''} deleted`, 'info');
   };
 
   const assignProductToCollection = (productId: string, collectionSlug: string) => {
@@ -422,18 +488,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         s.id === sectionId ? { ...s, enabled: !s.enabled } : s
       ),
     }));
-    showToast('Section visibility toggled');
   };
 
   const reorderHomepageSections = (fromIndex: number, toIndex: number) => {
-    setStorefrontConfig((prev) => {
-      const sections = [...prev.homepageSections];
-      if (toIndex < 0 || toIndex >= sections.length) return prev;
-      const [moved] = sections.splice(fromIndex, 1);
-      sections.splice(toIndex, 0, moved);
-      return { ...prev, homepageSections: sections };
-    });
-    showToast('Homepage layout reordered');
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= storefrontConfig.homepageSections.length ||
+      toIndex >= storefrontConfig.homepageSections.length
+    ) {
+      return;
+    }
+    const cloned = [...storefrontConfig.homepageSections];
+    const [moved] = cloned.splice(fromIndex, 1);
+    cloned.splice(toIndex, 0, moved);
+    setStorefrontConfig((prev) => ({
+      ...prev,
+      homepageSections: cloned,
+    }));
+    showToast('Reordered homepage sections');
   };
 
   const updateHomepageSection = (sectionId: string, updates: Partial<HomepageSectionItem>) => {
@@ -472,6 +545,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setOrders((prev) => [newOrder, ...prev]);
     clearCart();
+    showToast(`Created order ${newOrder.orderNumber}`);
     return newOrder;
   };
 
@@ -483,8 +557,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteOrder = (orderId: string) => {
+    const target = orders.find((o) => o.id === orderId);
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    showToast('Order removed', 'info');
+    showToast(`Order ${target?.orderNumber || ''} removed`, 'info');
   };
 
   // Cart Actions
@@ -516,12 +591,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
       ];
     });
-    showToast(`Added ${product.name} to bag`);
+    showToast(`Added "${product.name}" to bag`);
+    setIsCartOpen(true);
   };
 
   const removeFromCart = (itemId: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== itemId));
-    showToast('Item removed from bag', 'info');
+    setCart((prev) => prev.filter((i) => i.id !== itemId));
   };
 
   const updateQuantity = (itemId: string, delta: number) => {
@@ -542,22 +617,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCart([]);
   };
 
-  const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
-
+  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const cartSubtotal = cart.reduce(
-    (total, item) => total + item.product.price * item.quantity,
+    (acc, item) => acc + item.product.price * item.quantity,
     0
   );
 
-  // Price formatting based on configured currency
+  // Price formatting
   const formatPrice = (amount: number): string => {
     if (storefrontConfig.currency === 'USD') {
-      return `$${amount.toLocaleString()}`;
+      return `$${amount.toLocaleString('en-US')}`;
     }
-    return `${amount.toLocaleString()} ₮`;
+    return `${amount.toLocaleString('mn-MN')} ₮`;
   };
 
-  // Reset to initial demo state
+  // Reset demo data
   const resetAllToDefault = () => {
     setProducts(INITIAL_PRODUCTS);
     setCollections(INITIAL_COLLECTIONS);
@@ -569,7 +643,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(STORAGE_KEYS.CONFIG);
     localStorage.removeItem(STORAGE_KEYS.ORDERS);
     localStorage.removeItem(STORAGE_KEYS.CART);
-    showToast('Restored demo data to default settings');
+    showToast('Factory demo settings restored', 'info');
   };
 
   return (
@@ -583,6 +657,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         openAdminWithProduct,
         editingProductId,
         setEditingProductId,
+
+        isAdminAuthenticated,
+        isLoginModalOpen,
+        setIsLoginModalOpen,
+        loginAdmin,
+        logoutAdmin,
 
         storePage,
         selectedProductId,

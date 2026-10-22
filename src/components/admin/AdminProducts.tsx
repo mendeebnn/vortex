@@ -16,6 +16,8 @@ import {
   Layers,
   ArrowUpDown,
   Filter,
+  Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductVariantColor } from '../../types';
@@ -36,12 +38,17 @@ export const AdminProducts: React.FC = () => {
     setEditingProductId,
     setActiveView,
     navigateToProduct,
+    showToast,
   } = useApp();
 
   const [search, setSearch] = useState('');
   const [selectedCollectionFilter, setSelectedCollectionFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft'>('all');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+
+  // Inline delete confirmation state (prevents iframe window.confirm block)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isConfirmingBatchDelete, setIsConfirmingBatchDelete] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -74,7 +81,7 @@ export const AdminProducts: React.FC = () => {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
 
-  // Auto-open modal if navigated from storefront "Edit in Admin"
+  // Auto-open modal if navigated from storefront
   useEffect(() => {
     if (editingProductId) {
       const prod = products.find((p) => p.id === editingProductId);
@@ -95,9 +102,9 @@ export const AdminProducts: React.FC = () => {
   ];
 
   const popularSizePresets = [
-    { label: 'Shoes (39-44)', sizes: ['39', '40', '41', '42', '43', '44'] },
+    { label: 'Footwear (39-44)', sizes: ['39', '40', '41', '42', '43', '44'] },
     { label: 'Apparel (S-XXL)', sizes: ['S', 'M', 'L', 'XL', 'XXL'] },
-    { label: 'Standard (One Size)', sizes: ['One Size'] },
+    { label: 'One Size (Accessories)', sizes: ['One Size'] },
   ];
 
   const popularColorPresets = [
@@ -113,22 +120,19 @@ export const AdminProducts: React.FC = () => {
     setEditingProduct(null);
     setName('');
     setCollectionSlug(collections[0]?.slug || 'footwear');
-    setPrice(130000);
-    setCompareAtPrice(160000);
+    setPrice(135000);
+    setCompareAtPrice(165000);
     setInventory(25);
     setStatus('active');
     setImage(imagePresets[0].url);
-    setDescription('High performance thermal winter product engineered for cold city climates with extreme wind protection.');
+    setDescription('VOTEX sub-zero grade winter technical edition with thermal inner lining and weather-resistant finish.');
     setSku(`VTX-${Math.floor(100 + Math.random() * 900)}`);
     setTag('New Season');
     setIsFeatured(false);
     setIsNewArrival(true);
     setSizesList(['39', '40', '41', '42', '43', '44']);
-    setColorsList([
-      { name: 'Obsidian Black', hex: '#0A0A0A' },
-      { name: 'Glacier Charcoal', hex: '#374151' },
-    ]);
-    setGalleryImages([imagePresets[1].url]);
+    setColorsList([{ name: 'Obsidian Black', hex: '#0A0A0A' }]);
+    setGalleryImages([]);
     setIsModalOpen(true);
   };
 
@@ -192,21 +196,52 @@ export const AdminProducts: React.FC = () => {
     setGalleryImages(galleryImages.filter((_, i) => i !== index));
   };
 
+  // Safe delete handler without window.confirm
+  const handleDeleteProduct = (id: string) => {
+    if (deleteConfirmId === id) {
+      deleteProduct(id);
+      setDeleteConfirmId(null);
+    } else {
+      setDeleteConfirmId(id);
+      setTimeout(() => {
+        setDeleteConfirmId((prev) => (prev === id ? null : prev));
+      }, 4000);
+    }
+  };
+
+  const handleBatchDelete = () => {
+    if (isConfirmingBatchDelete) {
+      deleteMultipleProducts(selectedProductIds);
+      setSelectedProductIds([]);
+      setIsConfirmingBatchDelete(false);
+    } else {
+      setIsConfirmingBatchDelete(true);
+      setTimeout(() => setIsConfirmingBatchDelete(false), 4000);
+    }
+  };
+
   // Form Submit
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const cleanTitle = name.trim() || 'New VOTEX Item';
+    const safeSlug =
+      cleanTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || `prod-${Date.now()}`;
+
     const payload = {
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name: cleanTitle,
+      slug: safeSlug,
       collectionSlug: collectionSlug || collections[0]?.slug || 'footwear',
-      price: Number(price),
+      price: Number(price) > 0 ? Number(price) : 100000,
       compareAtPrice: compareAtPrice ? Number(compareAtPrice) : undefined,
-      inventory: Number(inventory),
+      inventory: Number(inventory) >= 0 ? Number(inventory) : 0,
       status,
-      image,
+      image: image.trim() || imagePresets[0].url,
       additionalImages: galleryImages,
-      description,
+      description: description.trim() || 'VOTEX Sub-zero winter product.',
       sizes: sizesList.length > 0 ? sizesList : ['Standard'],
       colors: colorsList.length > 0 ? colorsList : [{ name: 'Default', hex: '#0A0A0A' }],
       sku: sku.trim() || undefined,
@@ -222,6 +257,36 @@ export const AdminProducts: React.FC = () => {
     }
 
     setIsModalOpen(false);
+  };
+
+  // Quick 1-click add demo product
+  const handleQuickAddPreset = () => {
+    const titles = [
+      'VOTEX Polar Thermal Sneaker V2',
+      'VOTEX High-Collar Down Jacket',
+      'VOTEX Thermal Windrunner Pants',
+      'VOTEX Heavy Merino Wool Beanie',
+    ];
+    const chosenTitle = titles[Math.floor(Math.random() * titles.length)];
+    const chosenImage = imagePresets[Math.floor(Math.random() * imagePresets.length)].url;
+
+    addProduct({
+      name: `${chosenTitle} #${Math.floor(10 + Math.random() * 90)}`,
+      slug: `votex-quick-${Date.now().toString().slice(-4)}`,
+      collectionSlug: collections[0]?.slug || 'footwear',
+      price: 145000,
+      compareAtPrice: 175000,
+      inventory: 30,
+      status: 'active',
+      image: chosenImage,
+      description: 'Quick-added sample product for VOTEX catalogue demonstration.',
+      sizes: ['39', '40', '41', '42', '43', '44'],
+      colors: [{ name: 'Obsidian Black', hex: '#0A0A0A' }],
+      sku: `VTX-QK-${Math.floor(100 + Math.random() * 900)}`,
+      tag: 'New Drop',
+      isFeatured: true,
+      isNewArrival: true,
+    });
   };
 
   // Select all or individual
@@ -266,26 +331,41 @@ export const AdminProducts: React.FC = () => {
             Products Catalogue
           </h1>
           <p className="text-xs text-[#737373]">
-            Total {products.length} products · Add, edit, remove, duplicate, and configure inventory variants.
+            Total {products.length} products · Add, edit, delete, and configure inventory & variants.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Batch Delete with 2-step inline confirm */}
           {selectedProductIds.length > 0 && (
             <button
-              onClick={() => {
-                if (window.confirm(`Delete ${selectedProductIds.length} selected products?`)) {
-                  deleteMultipleProducts(selectedProductIds);
-                  setSelectedProductIds([]);
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer"
+              onClick={handleBatchDelete}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer ${
+                isConfirmingBatchDelete
+                  ? 'bg-rose-700 text-white animate-pulse'
+                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+              }`}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Selected ({selectedProductIds.length})</span>
+              <span>
+                {isConfirmingBatchDelete
+                  ? `Click to Confirm Delete (${selectedProductIds.length})`
+                  : `Delete Selected (${selectedProductIds.length})`}
+              </span>
             </button>
           )}
 
+          {/* Quick Add Demo Preset */}
+          <button
+            onClick={handleQuickAddPreset}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-[#E5E5E5] hover:border-[#0A0A0A] text-[#0A0A0A] text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Instantly add a sample product"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
+            <span>+ 1-Click Sample</span>
+          </button>
+
+          {/* Add New Product Button */}
           <button
             onClick={openAddModal}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0A0A0A] text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-sm active:scale-95"
@@ -350,7 +430,7 @@ export const AdminProducts: React.FC = () => {
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="text-[#737373] hover:text-[#0A0A0A]"
+                  className="text-[#737373] hover:text-[#0A0A0A] cursor-pointer"
                 >
                   {selectedProductIds.length === filteredProducts.length && filteredProducts.length > 0 ? (
                     <CheckSquare className="w-4 h-4 text-[#0A0A0A]" />
@@ -370,6 +450,7 @@ export const AdminProducts: React.FC = () => {
           <tbody className="divide-y divide-[#E5E5E5]">
             {filteredProducts.map((p) => {
               const isSelected = selectedProductIds.includes(p.id);
+              const isConfirmingDelete = deleteConfirmId === p.id;
 
               return (
                 <tr
@@ -382,7 +463,7 @@ export const AdminProducts: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => toggleSelectOne(p.id)}
-                      className="text-[#737373] hover:text-[#0A0A0A]"
+                      className="text-[#737373] hover:text-[#0A0A0A] cursor-pointer"
                     >
                       {isSelected ? (
                         <CheckSquare className="w-4 h-4 text-[#0A0A0A]" />
@@ -397,31 +478,29 @@ export const AdminProducts: React.FC = () => {
                       <img
                         src={p.image}
                         alt={p.name}
-                        className="w-12 h-12 object-cover bg-[#F7F7F7] border border-[#E5E5E5] shrink-0"
+                        className="w-11 h-11 object-cover bg-neutral-100 border border-[#E5E5E5] shrink-0"
                       />
-                      <div>
-                        <div className="font-bold text-[#0A0A0A] text-sm flex items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-[#0A0A0A] truncate font-brand flex items-center gap-2">
                           <span>{p.name}</span>
                           {p.tag && (
-                            <span className="px-1.5 py-0.2 bg-[#F7F7F7] border border-[#E5E5E5] text-[9px] font-mono text-[#0A0A0A] uppercase">
+                            <span className="text-[9px] font-mono font-normal uppercase bg-[#F7F7F7] border border-[#E5E5E5] px-1.5 py-0.2 rounded text-[#737373]">
                               {p.tag}
                             </span>
                           )}
                         </div>
                         <div className="text-[11px] font-mono text-[#737373] flex items-center gap-2 mt-0.5">
-                          <span>{p.sku || p.id}</span>
+                          <span>SKU: {p.sku || p.id}</span>
                           <span>·</span>
                           <span>{p.sizes.length} sizes</span>
                           <span>·</span>
                           <span>{p.colors.length} colors</span>
-                          {p.isFeatured && <span className="text-amber-700 font-bold">· Featured</span>}
-                          {p.isNewArrival && <span className="text-sky-700 font-bold">· New</span>}
                         </div>
                       </div>
                     </div>
                   </td>
 
-                  <td className="py-3 px-4 font-mono text-[#737373]">
+                  <td className="py-3 px-4 font-mono text-[#737373] uppercase">
                     {p.collectionSlug}
                   </td>
 
@@ -447,14 +526,14 @@ export const AdminProducts: React.FC = () => {
                       <div className="flex items-center gap-0.5 ml-1">
                         <button
                           onClick={() => updateProductInventory(p.id, -1)}
-                          className="w-5 h-5 flex items-center justify-center border border-[#E5E5E5] bg-[#F7F7F7] hover:bg-neutral-200 text-[#0A0A0A] font-bold rounded"
+                          className="w-5 h-5 flex items-center justify-center border border-[#E5E5E5] bg-[#F7F7F7] hover:bg-neutral-200 text-[#0A0A0A] font-bold rounded cursor-pointer"
                           title="Decrease 1"
                         >
                           -
                         </button>
                         <button
                           onClick={() => updateProductInventory(p.id, 5)}
-                          className="w-5 h-5 flex items-center justify-center border border-[#E5E5E5] bg-[#F7F7F7] hover:bg-neutral-200 text-[#0A0A0A] font-bold rounded"
+                          className="w-5 h-5 flex items-center justify-center border border-[#E5E5E5] bg-[#F7F7F7] hover:bg-neutral-200 text-[#0A0A0A] font-bold rounded cursor-pointer"
                           title="Add 5"
                         >
                           +
@@ -466,7 +545,7 @@ export const AdminProducts: React.FC = () => {
                   <td className="py-3 px-4 font-mono font-bold text-[#0A0A0A]">
                     <div>{formatPrice(p.price)}</div>
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
-                      <div className="text-[10px] text-[#737373] line-through">
+                      <div className="text-[10px] text-[#737373] line-through font-normal">
                         {formatPrice(p.compareAtPrice)}
                       </div>
                     )}
@@ -480,7 +559,7 @@ export const AdminProducts: React.FC = () => {
                           navigateToProduct(p.id);
                           setActiveView('store');
                         }}
-                        className="p-1.5 text-[#737373] hover:text-[#0A0A0A] hover:bg-neutral-100 rounded"
+                        className="p-1.5 text-[#737373] hover:text-[#0A0A0A] hover:bg-neutral-100 rounded cursor-pointer"
                         title="View on Live Store"
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -489,7 +568,7 @@ export const AdminProducts: React.FC = () => {
                       {/* Duplicate */}
                       <button
                         onClick={() => duplicateProduct(p.id)}
-                        className="p-1.5 text-[#737373] hover:text-[#0A0A0A] hover:bg-neutral-100 rounded"
+                        className="p-1.5 text-[#737373] hover:text-[#0A0A0A] hover:bg-neutral-100 rounded cursor-pointer"
                         title="Duplicate Product"
                       >
                         <Copy className="w-3.5 h-3.5" />
@@ -498,23 +577,27 @@ export const AdminProducts: React.FC = () => {
                       {/* Edit */}
                       <button
                         onClick={() => openEditModal(p)}
-                        className="p-1.5 text-[#737373] hover:text-[#0A0A0A] hover:bg-neutral-100 rounded"
+                        className="p-1.5 text-[#737373] hover:text-[#0A0A0A] hover:bg-neutral-100 rounded cursor-pointer"
                         title="Edit Product Details"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Delete */}
+                      {/* Delete with 2-step inline confirm to avoid window.confirm popup block */}
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Delete product "${p.name}"? This removes it from store immediately.`)) {
-                            deleteProduct(p.id);
-                          }
-                        }}
-                        className="p-1.5 text-[#737373] hover:text-rose-600 hover:bg-rose-50 rounded"
-                        title="Delete Product"
+                        onClick={() => handleDeleteProduct(p.id)}
+                        className={`p-1.5 rounded cursor-pointer transition-all ${
+                          isConfirmingDelete
+                            ? 'bg-rose-600 text-white font-bold px-2.5 text-[10px]'
+                            : 'text-[#737373] hover:text-rose-600 hover:bg-rose-50'
+                        }`}
+                        title={isConfirmingDelete ? 'Click again to permanently delete' : 'Delete Product'}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {isConfirmingDelete ? (
+                          <span>Confirm?</span>
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </div>
                   </td>
@@ -543,7 +626,7 @@ export const AdminProducts: React.FC = () => {
           <div className="relative w-full max-w-3xl bg-white border border-[#E5E5E5] shadow-2xl p-6 sm:p-8 my-8 text-left max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-2 text-[#737373] hover:text-[#0A0A0A]"
+              className="absolute top-4 right-4 p-2 text-[#737373] hover:text-[#0A0A0A] cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -708,7 +791,7 @@ export const AdminProducts: React.FC = () => {
                       key={preset.url}
                       type="button"
                       onClick={() => setImage(preset.url)}
-                      className={`px-2 py-0.5 text-[10px] font-mono border rounded ${
+                      className={`px-2 py-0.5 text-[10px] font-mono border rounded cursor-pointer ${
                         image === preset.url
                           ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
                           : 'bg-white text-[#0A0A0A] border-[#E5E5E5] hover:border-[#0A0A0A]'
@@ -740,7 +823,7 @@ export const AdminProducts: React.FC = () => {
                       key={preset.label}
                       type="button"
                       onClick={() => setSizesList([...preset.sizes])}
-                      className="px-2 py-0.5 border border-[#E5E5E5] bg-[#F7F7F7] hover:border-[#0A0A0A] rounded"
+                      className="px-2 py-0.5 border border-[#E5E5E5] bg-[#F7F7F7] hover:border-[#0A0A0A] rounded cursor-pointer"
                     >
                       {preset.label}
                     </button>
@@ -748,18 +831,18 @@ export const AdminProducts: React.FC = () => {
                 </div>
 
                 {/* Current Sizes Chips with Remove button */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 pt-1">
                   {sizesList.map((sz) => (
                     <span
                       key={sz}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F7F7F7] border border-[#E5E5E5] text-xs font-mono font-bold text-[#0A0A0A] rounded"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F7F7F7] border border-[#E5E5E5] text-xs font-mono font-bold text-[#0A0A0A] rounded"
                     >
                       <span>{sz}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveSize(sz)}
-                        className="text-[#737373] hover:text-rose-600 hover:bg-neutral-200 rounded-full w-4 h-4 flex items-center justify-center cursor-pointer"
-                        title="Remove Size"
+                        className="text-[#737373] hover:text-rose-600 cursor-pointer"
+                        title={`Remove ${sz}`}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -768,7 +851,7 @@ export const AdminProducts: React.FC = () => {
                 </div>
 
                 {/* Add new size input */}
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex gap-2 pt-2 border-t border-[#E5E5E5]">
                   <input
                     type="text"
                     value={newSizeInput}
@@ -779,13 +862,13 @@ export const AdminProducts: React.FC = () => {
                         handleAddSize();
                       }
                     }}
-                    placeholder="Enter custom size (e.g. 45 or 3XL) and press Add..."
-                    className="flex-1 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] text-xs font-mono text-[#0A0A0A] focus:outline-none focus:border-[#0A0A0A]"
+                    placeholder="Enter custom size (e.g. 45, 3XL, Slim)..."
+                    className="flex-1 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-xs focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleAddSize}
-                    className="px-4 py-1.5 bg-[#0A0A0A] text-white font-bold uppercase text-[11px] rounded cursor-pointer hover:bg-neutral-800"
+                    className="px-3 py-1.5 bg-[#0A0A0A] text-white text-xs font-bold uppercase rounded cursor-pointer"
                   >
                     + Add Size
                   </button>
@@ -800,28 +883,47 @@ export const AdminProducts: React.FC = () => {
                     <span>Color Variants ({colorsList.length})</span>
                   </label>
                   <span className="text-[11px] font-mono text-[#737373]">
-                    Click × to remove, or add new color
+                    Configure variant swatches
                   </span>
                 </div>
 
-                {/* Color Chips List with Remove Button */}
-                <div className="flex flex-wrap gap-2">
+                {/* Color presets */}
+                <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                  <span className="text-[#737373] self-center">Presets:</span>
+                  {popularColorPresets.map((c) => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => {
+                        if (!colorsList.some((col) => col.name === c.name)) {
+                          setColorsList([...colorsList, c]);
+                        }
+                      }}
+                      className="px-2 py-0.5 border border-[#E5E5E5] bg-[#F7F7F7] hover:border-[#0A0A0A] rounded flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="w-2 h-2 rounded-full border border-neutral-300" style={{ backgroundColor: c.hex }} />
+                      <span>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Current Colors list */}
+                <div className="flex flex-wrap gap-2 pt-1">
                   {colorsList.map((col, idx) => (
                     <span
-                      key={idx}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] text-xs font-mono text-[#0A0A0A] rounded"
+                      key={`${col.name}-${idx}`}
+                      className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#F7F7F7] border border-[#E5E5E5] text-xs rounded"
                     >
                       <span
-                        className="w-3.5 h-3.5 rounded-full border border-neutral-300 shrink-0"
+                        className="w-3 h-3 rounded-full border border-neutral-300"
                         style={{ backgroundColor: col.hex }}
                       />
-                      <span className="font-bold">{col.name}</span>
-                      <span className="text-[10px] text-[#737373]">{col.hex}</span>
+                      <span className="font-bold text-[#0A0A0A]">{col.name}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveColor(idx)}
-                        className="text-[#737373] hover:text-rose-600 hover:bg-neutral-200 rounded-full w-4 h-4 flex items-center justify-center cursor-pointer ml-1"
-                        title="Remove Color"
+                        className="text-[#737373] hover:text-rose-600 cursor-pointer"
+                        title={`Remove ${col.name}`}
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -829,84 +931,57 @@ export const AdminProducts: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Preset Colors */}
-                <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
-                  <span className="text-[#737373] self-center">Presets:</span>
-                  {popularColorPresets.map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => {
-                        if (!colorsList.some((c) => c.name === preset.name)) {
-                          setColorsList([...colorsList, preset]);
-                        }
-                      }}
-                      className="px-2 py-0.5 border border-[#E5E5E5] bg-[#F7F7F7] hover:border-[#0A0A0A] rounded flex items-center gap-1"
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full border border-neutral-300"
-                        style={{ backgroundColor: preset.hex }}
-                      />
-                      <span>{preset.name}</span>
-                    </button>
-                  ))}
-                </div>
-
                 {/* Add new color input */}
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-2 border-t border-[#E5E5E5]">
                   <input
                     type="color"
                     value={newColorHex}
                     onChange={(e) => setNewColorHex(e.target.value)}
-                    className="w-9 h-8 p-0.5 border border-[#E5E5E5] bg-white cursor-pointer shrink-0"
-                    title="Choose color"
+                    className="w-8 h-8 p-0 border border-[#E5E5E5] cursor-pointer bg-transparent"
+                    title="Choose Color Hex"
                   />
                   <input
                     type="text"
                     value={newColorName}
                     onChange={(e) => setNewColorName(e.target.value)}
-                    placeholder="Color Name (e.g. Glacier White, Slate Grey)..."
-                    className="flex-1 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] text-xs font-mono text-[#0A0A0A] focus:outline-none focus:border-[#0A0A0A]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddColor();
+                      }
+                    }}
+                    placeholder="Color Name (e.g. Gunmetal Grey, Ice Blue)..."
+                    className="flex-1 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-xs focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleAddColor}
-                    className="px-4 py-1.5 bg-[#0A0A0A] text-white font-bold uppercase text-[11px] rounded cursor-pointer hover:bg-neutral-800"
+                    className="px-3 py-1.5 bg-[#0A0A0A] text-white text-xs font-bold uppercase rounded cursor-pointer"
                   >
                     + Add Color
                   </button>
                 </div>
               </div>
 
-              {/* Dynamic Gallery Additional Images (Add / Remove) */}
+              {/* Additional Gallery Images */}
               <div className="p-4 border border-[#E5E5E5] bg-white space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="font-bold uppercase tracking-wider text-[#0A0A0A] flex items-center gap-1.5">
                     <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Gallery Additional Images ({galleryImages.length})</span>
+                    <span>Additional Gallery Angles ({galleryImages.length})</span>
                   </label>
-                  <span className="text-[11px] font-mono text-[#737373]">
-                    Additional angles & lifestyle shots
-                  </span>
                 </div>
 
                 {galleryImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2.5">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
                     {galleryImages.map((imgUrl, idx) => (
-                      <div
-                        key={idx}
-                        className="relative w-16 h-16 bg-[#F7F7F7] border border-[#E5E5E5] overflow-hidden group"
-                      >
-                        <img
-                          src={imgUrl}
-                          alt="Gallery item"
-                          className="w-full h-full object-cover"
-                        />
+                      <div key={idx} className="relative aspect-square border border-[#E5E5E5] bg-neutral-100 group">
+                        <img src={imgUrl} alt="angle" className="w-full h-full object-cover" />
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(idx)}
-                          className="absolute top-1 right-1 w-5 h-5 bg-black/80 hover:bg-rose-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow"
-                          title="Remove Image"
+                          className="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center opacity-80 hover:opacity-100 cursor-pointer"
+                          title="Remove image"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -915,18 +990,18 @@ export const AdminProducts: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex gap-2 pt-1">
                   <input
-                    type="text"
+                    type="url"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="Paste image URL to add to product gallery..."
-                    className="flex-1 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] text-xs font-mono text-[#0A0A0A] focus:outline-none focus:border-[#0A0A0A]"
+                    placeholder="Paste extra image URL or select from presets..."
+                    className="flex-1 px-3 py-1.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-xs font-mono focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => handleAddImage()}
-                    className="px-4 py-1.5 bg-[#0A0A0A] text-white font-bold uppercase text-[11px] rounded cursor-pointer hover:bg-neutral-800"
+                    className="px-3 py-1.5 bg-[#0A0A0A] text-white text-xs font-bold uppercase rounded cursor-pointer"
                   >
                     + Add Image
                   </button>
@@ -943,71 +1018,50 @@ export const AdminProducts: React.FC = () => {
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Thermal specs, material composition, cold weather rating (-25°C)..."
-                  className="w-full px-3.5 py-2.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-[#0A0A0A] focus:outline-none leading-relaxed"
+                  placeholder="Engineered for extreme continental winter. Thermal insulation, windproof shell, water-resistant seams..."
+                  className="w-full px-3.5 py-2.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-[#0A0A0A] leading-relaxed focus:outline-none"
                 />
               </div>
 
-              {/* Toggles */}
+              {/* Merchandising Toggles */}
               <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-[#E5E5E5]">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-[#0A0A0A]">
                   <input
                     type="checkbox"
                     checked={isFeatured}
                     onChange={(e) => setIsFeatured(e.target.checked)}
-                    className="rounded border-[#E5E5E5] text-[#0A0A0A] focus:ring-[#0A0A0A]"
+                    className="rounded border-[#E5E5E5] w-4 h-4 text-[#0A0A0A] focus:ring-0 cursor-pointer"
                   />
-                  <span className="font-bold text-[#0A0A0A]">Show in Homepage Featured Grid</span>
+                  <span>Show in Featured Section</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-[#0A0A0A]">
                   <input
                     type="checkbox"
                     checked={isNewArrival}
                     onChange={(e) => setIsNewArrival(e.target.checked)}
-                    className="rounded border-[#E5E5E5] text-[#0A0A0A] focus:ring-[#0A0A0A]"
+                    className="rounded border-[#E5E5E5] w-4 h-4 text-[#0A0A0A] focus:ring-0 cursor-pointer"
                   />
-                  <span className="font-bold text-[#0A0A0A]">Show in New Arrivals</span>
+                  <span>Mark as New Arrival Drop</span>
                 </label>
               </div>
 
-              {/* Actions */}
-              <div className="pt-4 border-t border-[#E5E5E5] flex items-center justify-between">
-                {editingProduct ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm(`Delete product "${editingProduct.name}"?`)) {
-                        deleteProduct(editingProduct.id);
-                        setIsModalOpen(false);
-                      }
-                    }}
-                    className="text-rose-600 hover:text-rose-700 font-bold uppercase text-xs flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Product</span>
-                  </button>
-                ) : (
-                  <div />
-                )}
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-5 py-2.5 border border-[#E5E5E5] hover:border-[#0A0A0A] text-[#0A0A0A] uppercase font-bold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 bg-[#0A0A0A] hover:bg-neutral-800 text-white uppercase font-bold shadow-sm cursor-pointer"
-                  >
-                    {editingProduct ? 'Save Changes' : 'Create Product'}
-                  </button>
-                </div>
+              {/* Modal Footer Actions */}
+              <div className="pt-4 border-t border-[#E5E5E5] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 border border-[#E5E5E5] text-[#737373] hover:text-[#0A0A0A] font-bold text-xs uppercase cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#0A0A0A] hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 cursor-pointer"
+                >
+                  {editingProduct ? 'Save Changes' : 'Create Product'}
+                </button>
               </div>
-
             </form>
           </div>
         </div>

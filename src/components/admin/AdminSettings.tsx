@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Sliders, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Save, Sliders, RotateCcw, AlertTriangle, Lock, KeyRound } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const AdminSettings: React.FC = () => {
@@ -12,12 +12,25 @@ export const AdminSettings: React.FC = () => {
     storeAddress: storefrontConfig.storeAddress,
     currency: storefrontConfig.currency,
     freeShippingThreshold: storefrontConfig.freeShippingThreshold,
+    adminPassword: storefrontConfig.adminPassword || 'admin',
   });
+
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     updateStorefrontConfig(formData);
-    showToast('Store settings saved successfully!');
+    showToast('Store settings & security saved successfully!');
+  };
+
+  const handleResetData = () => {
+    if (confirmReset) {
+      resetAllToDefault();
+      setConfirmReset(false);
+    } else {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 4000);
+    }
   };
 
   return (
@@ -27,7 +40,7 @@ export const AdminSettings: React.FC = () => {
           Store Settings
         </h1>
         <p className="text-xs text-[#737373]">
-          Configure regional contact channels, currency options, and delivery thresholds.
+          Configure regional contact channels, currency options, delivery thresholds, and admin security password.
         </p>
       </div>
 
@@ -117,10 +130,36 @@ export const AdminSettings: React.FC = () => {
           </div>
         </div>
 
+        {/* Security Password Setting */}
+        <div className="pt-4 border-t border-[#E5E5E5]">
+          <h2 className="text-sm font-black uppercase tracking-wider text-[#0A0A0A] flex items-center gap-2 pb-3">
+            <Lock className="w-4 h-4" />
+            <span>Admin Security & Password</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-bold uppercase tracking-wider text-[#0A0A0A] mb-1">
+                Admin Dashboard Password *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.adminPassword}
+                onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                placeholder="e.g. admin or custom password"
+                className="w-full px-3.5 py-2.5 bg-[#F7F7F7] border border-[#E5E5E5] focus:border-[#0A0A0A] text-[#0A0A0A] font-mono font-bold focus:outline-none"
+              />
+              <span className="text-[11px] font-mono text-[#737373] mt-1 block">
+                Current default is: <strong>admin</strong> (or <strong>votex</strong>)
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div className="pt-4 border-t border-[#E5E5E5] flex justify-end">
           <button
             type="submit"
-            className="px-6 py-2.5 bg-[#0A0A0A] hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 flex items-center gap-2"
+            className="px-6 py-2.5 bg-[#0A0A0A] hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer"
           >
             <Save className="w-4 h-4" />
             <span>Save Settings</span>
@@ -139,15 +178,15 @@ export const AdminSettings: React.FC = () => {
         </p>
         <button
           type="button"
-          onClick={() => {
-            if (window.confirm('Are you sure you want to restore demo factory settings?')) {
-              resetAllToDefault();
-            }
-          }}
-          className="px-4 py-2 border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-mono uppercase font-bold flex items-center gap-2"
+          onClick={handleResetData}
+          className={`px-4 py-2 border text-xs font-mono uppercase font-bold flex items-center gap-2 cursor-pointer transition-colors ${
+            confirmReset
+              ? 'bg-rose-700 text-white border-rose-700 animate-pulse'
+              : 'border-rose-300 text-rose-700 hover:bg-rose-50'
+          }`}
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset to Defaults</span>
+          <span>{confirmReset ? 'Click to Confirm Reset' : 'Reset to Defaults'}</span>
         </button>
       </div>
     </div>

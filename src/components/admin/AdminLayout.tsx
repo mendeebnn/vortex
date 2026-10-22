@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Package,
   Layers,
@@ -7,6 +7,8 @@ import {
   Sliders,
   ExternalLink,
   RotateCcw,
+  LogOut,
+  Lock,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AdminTab } from '../../types';
@@ -24,8 +26,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     orders,
     products,
     resetAllToDefault,
+    logoutAdmin,
   } = useApp();
 
+  const [confirmReset, setConfirmReset] = useState(false);
   const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
 
   const navItems: { tab: AdminTab; label: string; icon: React.ElementType; badge?: number }[] = [
@@ -36,15 +40,25 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { tab: 'settings', label: 'Store Settings', icon: Sliders },
   ];
 
+  const handleReset = () => {
+    if (confirmReset) {
+      resetAllToDefault();
+      setConfirmReset(false);
+    } else {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 4000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F7F7] text-[#0A0A0A] flex flex-col font-sans">
       {/* Admin Top Navigation */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0A] text-white border-b border-neutral-800">
+      <header className="sticky top-0 z-40 bg-[#0A0A0A] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
           {/* Logo & Store indicator */}
           <div className="flex items-center gap-3">
-            <span className="text-sm font-black font-brand uppercase tracking-widest bg-white text-[#0A0A0A] px-2 py-0.5 rounded">
+            <span className="text-xs font-black font-brand uppercase tracking-widest bg-white text-[#0A0A0A] px-2 py-0.5 rounded">
               ADMIN
             </span>
             <div className="flex flex-col">
@@ -58,26 +72,36 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           </div>
 
           {/* Action links */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => {
-                if (window.confirm('Reset all demo products and settings to default?')) {
-                  resetAllToDefault();
-                }
-              }}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono text-[#737373] hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+              onClick={handleReset}
+              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono transition-colors cursor-pointer ${
+                confirmReset
+                  ? 'bg-rose-900 text-rose-200'
+                  : 'text-[#737373] hover:text-white hover:bg-neutral-800'
+              }`}
               title="Reset Demo Data"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Data</span>
+              <span>{confirmReset ? 'Confirm Reset?' : 'Reset Data'}</span>
             </button>
 
             <button
               onClick={() => setActiveView('store')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#0A0A0A] hover:bg-neutral-200 text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-sm active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white text-[#0A0A0A] hover:bg-neutral-200 text-xs font-bold uppercase tracking-wider rounded transition-all cursor-pointer shadow-sm active:scale-95"
             >
-              <span>View Public Store</span>
+              <span>View Store</span>
               <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Logout / Lock Dashboard Button */}
+            <button
+              onClick={logoutAdmin}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800 text-xs font-mono uppercase tracking-wider rounded transition-all cursor-pointer"
+              title="Lock Admin Dashboard"
+            >
+              <Lock className="w-3 h-3 text-neutral-400" />
+              <span className="hidden sm:inline">Lock</span>
             </button>
           </div>
         </div>
